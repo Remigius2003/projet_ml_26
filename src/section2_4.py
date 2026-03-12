@@ -130,6 +130,8 @@ def experiment_finetune(tr_p, y_tr, te_p, y_te, n_classes=15, epochs=20, device=
 
 def experiment_pca(X_tr, y_tr, X_te, y_te, dims=None, C=1.0):
     if dims is None: dims = [64, 128, 256, 512, 1024, 2048]
+    max_comp = min(X_tr.shape[0], X_tr.shape[1])
+    dims = [d for d in dims if d <= max_comp]
     results = []
     for d in dims:
         pca = PCA(n_components=d)
