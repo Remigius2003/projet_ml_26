@@ -47,99 +47,70 @@ def load_vgg16():
     return model
 
 def download_15scene(dest_path="data/15-Scene"):
-    """
-    Download the 15-Scene dataset and extract it.
-    COMMENT: ~120MB zip, 4,485 grayscale images, 15 scene categories (CC BY 4.0).
-    Skips download if dest_path already has >=15 class folders.
-    """
-    import os, zipfile, shutil, urllib.request
- 
-    # COMMENT: Skip if already downloaded
-    if os.path.isdir(dest_path):
-        subdirs = [d for d in os.listdir(dest_path) if os.path.isdir(os.path.join(dest_path, d))]
-        if len(subdirs) >= 15:
-            print(f"  Dataset found at '{dest_path}' ({len(subdirs)} classes).")
-            return dest_path
- 
+    import shutil, urllib.request, zipfile, subprocess, sys, os
+
+    if os.path.isdir(dest_path) and sum(
+        os.path.isdir(os.path.join(dest_path, d)) for d in os.listdir(dest_path)
+    ) >= 15:
+        print(f"  Dataset found ({len(os.listdir(dest_path))} classes).")
+        return dest_path
+
     os.makedirs(dest_path, exist_ok=True)
     parent = os.path.dirname(dest_path) or "."
     zip_path = os.path.join(parent, "15scene.zip")
- 
-    # COMMENT: Figshare blocks urllib's default User-Agent ("Python-urllib/3.x").
-    # We must send a browser-like User-Agent or the server returns 403/empty response.
-    # Multiple URLs are tried: Figshare article downloads + Figshare file API.
-    urls = [
+    tmp = os.path.join(parent, "_tmp15")
+
+    for url in [
         "https://figshare.com/ndownloader/articles/7007177/versions/1",
         "https://ndownloader.figshare.com/articles/7007177/versions/1",
-        "https://figshare.com/ndownloader/articles/12103434/versions/1",
-    ]
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
- 
-    downloaded = False
-    for url in urls:
+    ]:
         try:
-            print(f"  Downloading 15-Scene dataset...")
-            print(f"  URL: {url}")
-            # COMMENT: Build a Request with browser-like headers so Figshare doesn't block us
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=120) as response:
-                total = int(response.headers.get('Content-Length', 0))
-                chunk_size = 1024 * 256  # 256 KB chunks
-                downloaded_bytes = 0
-                with open(zip_path, 'wb') as f:
-                    while True:
-                        chunk = response.read(chunk_size)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-                        downloaded_bytes += len(chunk)
-                        if total > 0:
-                            pct = downloaded_bytes * 100 // total
-                            mb = downloaded_bytes / 1e6
-                            print(f"\r  {mb:.1f} MB / {total/1e6:.1f} MB ({pct}%)", end="", flush=True)
-                print()  # newline after progress
- 
-            if os.path.getsize(zip_path) > 1_000_000:  # COMMENT: sanity check > 1MB
-                downloaded = True
+            print("  Downloading...")
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=180) as r, open(zip_path, "wb") as f:
+                shutil.copyfileobj(r, f)
+            if os.path.getsize(zip_path) > 1_000_000:
                 break
-            else:
-                print(f"  File too small ({os.path.getsize(zip_path)} bytes), trying next URL...")
         except Exception as e:
             print(f"  Failed: {e}")
- 
-    if not downloaded:
-        print(f"\n  Auto-download failed. Please download manually:")
-        print(f"  1. Go to: https://figshare.com/articles/dataset/15-Scene_Image_Dataset/7007177")
-        print(f"  2. Click 'Download all' (or download the zip file)")
-        print(f"  3. Extract so class folders are directly under: {dest_path}/")
-        print(f"     e.g. {dest_path}/bedroom/, {dest_path}/coast/, ...")
-        raise FileNotFoundError(f"Could not download 15-Scene dataset to '{dest_path}'")
- 
-    # COMMENT: Extract — handle nested zips (Figshare wraps files in an outer zip)
-    print(f"  Extracting...")
-    with zipfile.ZipFile(zip_path, 'r') as z:
-        z.extractall(dest_path)
- 
-    # COMMENT: Figshare often nests the real zip inside the article zip
-    for f in os.listdir(dest_path):
-        fpath = os.path.join(dest_path, f)
-        if f.endswith('.zip') and os.path.isfile(fpath):
-            print(f"  Extracting inner zip: {f}")
-            with zipfile.ZipFile(fpath, 'r') as z2:
-                z2.extractall(dest_path)
-            os.remove(fpath)
- 
-    # COMMENT: Flatten if there's a single wrapper folder (e.g. dest/15-Scene/bedroom → dest/bedroom)
-    entries = [e for e in os.listdir(dest_path) if os.path.isdir(os.path.join(dest_path, e))]
-    if len(entries) == 1:
-        inner = os.path.join(dest_path, entries[0])
-        for item in os.listdir(inner):
-            shutil.move(os.path.join(inner, item), os.path.join(dest_path, item))
-        os.rmdir(inner)
- 
-    if os.path.exists(zip_path):
-        os.remove(zip_path)
- 
-    subdirs = sorted([d for d in os.listdir(dest_path) if os.path.isdir(os.path.join(dest_path, d))])
-    print(f"  Done! {len(subdirs)} classes: {', '.join(subdirs[:5])}...")
+    else:
+        raise FileNotFoundError("Download failed from all URLs")
+
+    os.makedirs(tmp, exist_ok=True)
+    with zipfile.ZipFile(zip_path) as z: z.extractall(tmp)
+    os.remove(zip_path)
+
+    rar = next(
+        (os.path.join(r, f) for r, _, fs in os.walk(tmp) for f in fs if f.endswith(".rar")),
+        None,
+    )
+    if not rar:
+        raise FileNotFoundError("No .rar found inside the .zip")
+
+    print("  Extracting .rar...")
+    commands = [
+        ["unrar", "x", "-y", "-o+", rar, tmp + os.sep],
+        ["7z", "x", f"-o{tmp}", "-y", rar],
+        [r"C:\Program Files\7-Zip\7z.exe", "x", f"-o{tmp}", "-y", rar],
+        [r"C:\Program Files (x86)\7-Zip\7z.exe", "x", f"-o{tmp}", "-y", rar],
+    ]
+
+    for cmd in commands:
+        try: subprocess.run(cmd, check=True, capture_output=True); break
+        except (FileNotFoundError, subprocess.CalledProcessError): continue
+    else:
+        shutil.rmtree(tmp, ignore_errors=True)
+        print("\n No .rar extractor found. Install one or manually download 15-Scene at :", dest_path)
+        raise RuntimeError("No .rar extractor found, see instructions above")
+
+    for root, dirs, _ in os.walk(tmp):
+        if len(dirs) >= 15:
+            for d in dirs: shutil.move(os.path.join(root, d), os.path.join(dest_path, d))
+            break
+
+    shutil.rmtree(tmp, ignore_errors=True)
+    n = sum(os.path.isdir(os.path.join(dest_path, d)) for d in os.listdir(dest_path))
+    if n < 15: raise RuntimeError(f"Expected 15 classes, got {n}")
+    print(f"  Done! {n} classes.")
+    
     return dest_path

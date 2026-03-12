@@ -8,7 +8,7 @@ from sklearn.preprocessing import normalize
 from sklearn.decomposition import PCA
 from torch.utils.data import Dataset, DataLoader
 from utils import preprocess_tensor_only
-from Part2 import extract_features
+from section2 import extract_features
 
 class VGG16Extractor(nn.Module):
     def __init__(self, layer='relu7'):
@@ -76,7 +76,7 @@ def experiment_resnet(tr_p, y_tr, te_p, y_te, device='cpu', C=1.0):
     svm = LinearSVC(C=C, max_iter=10000); svm.fit(X_tr, y_tr)
 
     acc = svm.score(X_te, y_te)
-    print(f"  ResNet50 (dim={X_tr.shape[1]}) → {acc:.2%}")
+    print(f"  ResNet50 (dim={X_tr.shape[1]}) -> {acc:.2%}")
 
     return acc
 
