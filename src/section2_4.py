@@ -54,7 +54,7 @@ def experiment_C(X_tr, y_tr, X_te, y_te, C_vals=None):
     plt.tight_layout(); plt.show()
 
     best_C = C_vals[np.argmax(te_accs)]
-    print(f"  Best C = {best_C} → {max(te_accs):.2%}")
+    print(f"  Best C = {best_C} -> {max(te_accs):.2%}")
 
     return best_C
 
