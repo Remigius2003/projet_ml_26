@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-from utils import preprocess, stable_softmax, load_imagenet_classes, load_vgg16
+from utils import preprocess, stable_softmax
 
 def count_parameters(model):
     total = sum(p.numel() for p in model.parameters())

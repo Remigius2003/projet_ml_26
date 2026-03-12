@@ -33,7 +33,7 @@ def load_15scene(path, n_train=100, seed=42):
         te_paths.extend(imgs[n_train:]);  te_labels.extend([idx]*len(imgs[n_train:]))
         print(f"  {c:20s} train:{min(n_train,len(imgs)):3d}  test:{len(imgs[n_train:]):3d}")
 
-    print(f"  Total — train:{len(tr_paths)} test:{len(te_paths)}")
+    print(f"  Total: train:{len(tr_paths)} test:{len(te_paths)}")
     return tr_paths, np.array(tr_labels), te_paths, np.array(te_labels), class_names
 
 def extract_features(paths, model, device='cpu', batch_size=32):
@@ -47,7 +47,6 @@ def extract_features(paths, model, device='cpu', batch_size=32):
             print(f"    {min(i+batch_size, len(paths))}/{len(paths)}")
     return np.concatenate(all_feats, axis=0)
 
-
 def extract_and_normalize(paths, model, device='cpu'):
     X = extract_features(paths, model, device)
     return normalize(X, norm='l2', axis=1)
@@ -57,11 +56,10 @@ def train_and_eval(X_train, y_train, X_test, y_test, C=1.0, class_names=None):
     svm.fit(X_train, y_train)
     y_pred = svm.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
-    print(f"  C={C} → Train:{svm.score(X_train,y_train):.2%}  Test:{acc:.2%}")
+    print(f"  C={C} -> Train:{svm.score(X_train,y_train):.2%}  Test:{acc:.2%}")
     if class_names is not None:
         print(classification_report(y_test, y_pred, target_names=class_names))
     return svm, acc, y_pred
-
 
 def plot_confusion(y_true, y_pred, names, title="Confusion Matrix"):
     cm = confusion_matrix(y_true, y_pred)
