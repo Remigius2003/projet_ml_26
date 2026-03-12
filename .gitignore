@@ -1,0 +1,5 @@
+imagenet_classes.pkl
+imagenet_classes.txt
+__pycache__/
+15-Scene/
+.vscode/
